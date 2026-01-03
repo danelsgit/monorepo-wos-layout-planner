@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:title" content="Alliance Layout Planner">
+    <meta property="og:description" content="Check out this Layout!">
+    <link rel="stylesheet" href="/css/tailwind.css?v=2">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+    <title>Alliance Layout Planner</title>
+</head>
+<body class="overflow-hidden">
+    <!-- Fullscreen Canvas -->
+    <canvas id="layoutCanvas"></canvas>
+    
+    <!-- Top Controls -->
+    <div id="topControls"
+        class="fixed top-4 left-0 right-0 z-40 pointer-events-none flex justify-center">
+        <!-- Wrapper-->
+        <div class="px-4">
+            <!-- White Card -->
+            <div class="bg-white shadow-lg rounded-lg pointer-events-auto">
+                <div class="flex items-center px-4 py-3 gap-4">
+                    <!-- Controls Group -->
+                    <div id="toolbar-controls" class="flex items-center gap-2 flex-wrap md:flex-nowrap">
+                        <button data-type="select" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium flex-none min-w-max md:min-w-0 leading-5">Select</button>
+                        <button data-type="move"   class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium flex-none min-w-max md:min-w-0 leading-5">Pan</button>
+                        <button id="deleteButton"  class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium flex-none min-w-max md:min-w-0 leading-5">Delete</button>
+                        <button id="clearButton"   class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium flex-none min-w-max md:min-w-0 leading-5">Clear</button>
+                        <button id="undoButton"   class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded-lg text-sm font-medium flex-none min-w-max md:min-w-0 leading-5" disabled>Undo</button>
+                        <button id="redoButton"   class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded-lg text-sm font-medium flex-none min-w-max md:min-w-0 leading-5" disabled>Redo</button>
+                    </div>
+
+                    <div class="h-8 w-px bg-gray-300 hidden md:block"></div>
+
+                    <!-- Zoom Controls (hidden on mobile) -->
+                    <div class="hidden md:flex items-center gap-2">
+                        <button id="zoomOutBtn" class="h-9 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-base leading-none font-bold">−</button>
+                        <span id="zoomLevel" class="w-12 text-sm font-medium text-center select-none">100%</span>
+                        <button id="zoomInBtn"  class="h-9 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-base leading-none font-bold">+</button>
+                        <button id="resetZoomBtn" class="h-9 px-3 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-medium">Reset</button>
+                        <button id="centerBtn"    class="h-9 px-3 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-medium">Center</button>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div id="rightSidebar" class="fixed right-0 top-0 h-full bg-white shadow-lg z-50 flex flex-col border-l border-gray-200" style="width: 320px;">
+        <!-- Main Content Area -->
+        <div class="flex flex-col h-full">
+            <!-- Top Section with Map Name -->
+            <div class="p-4 border-b">
+                <input id="mapNameInput" type="text" placeholder="Map Name (optional)" 
+                       class="w-full p-3 border-2 border-gray-300 rounded-lg text-center focus:border-blue-500 focus:outline-none" maxlength="30">
+                <div id="mapNameHint" class="text-center text-red-500 text-sm mt-1 hidden"></div>
+                <div class="mt-3 flex items-center justify-center gap-2">
+                    <label for="mapModeSelect" class="text-sm font-medium">Mode:</label>
+                    <select id="mapModeSelect" class="p-2 border-2 border-gray-300 rounded-lg text-sm">
+                        <option value="castle">Castle</option>
+                        <option value="base">Base</option>
+                    </select>
+                </div>
+                    <div id="marchtimeHint" class="mt-2 text-center text-xs text-gray-600 px-3 hidden">
+                    Note: In <strong>Castle</strong> mode march times are calculated using a 25% march speed bonus (no pets, with facilities).
+                    </div>
+            </div>
+
+            <!-- Middle Section with Buildings and Cities -->
+            <div class="flex-1 overflow-y-auto">
+                <!-- Buildings Section -->
+                <div class="border-b">
+                    <button data-section="buildings" class="w-full px-4 py-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100">
+                        <span class="font-medium">Buildings</span>
+                        <span class="transform transition-transform" id="buildingsArrow">▼</span>
+                    </button>
+                    <div id="buildingsSection" class="p-4">
+                        <div id="toolbar-buildings" class="grid grid-cols-2 gap-2 mb-4">
+                            <button data-type="flag" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Flag</button>
+                            <button data-type="city" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">City</button>
+                            <button data-type="building" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Trap</button>
+                            <button data-type="hq" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">HQ</button>
+                            <button data-type="node" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Node</button>
+                            <button data-type="obstacle" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Obstacle</button>
+                        </div>
+                        <div class="text-sm p-3 bg-gray-100 rounded-lg text-center space-y-1">
+                        <!-- Row 1 -->
+                        <div class="flex justify-center space-x-2">
+                            <span>Flags: <span id="flagCounter" class="font-bold">0</span></span>
+                            <span>Cities: <span id="cityCounter" class="font-bold">0</span></span>
+                            <span>BT: <span id="buildingCounter" class="font-bold">0</span></span>
+                        </div>
+
+                        <!-- Row 2 -->
+                        <div class="flex justify-center space-x-2">
+                            <span>HQ: <span id="hqCounter" class="font-bold">0</span></span>
+                            <span>Nodes: <span id="nodeCounter" class="font-bold">0</span></span>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cities Section -->
+                <div class="border-b">
+                    <button data-section="cities" class="w-full px-4 py-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100">
+                        <span class="font-medium">Cities</span>
+                        <span class="transform transition-transform" id="citiesArrow">▼</span>
+                    </button>
+                    <div id="citiesSection" class="flex-1 overflow-hidden flex flex-col">
+                        <div class="p-4 border-b">
+                            <!-- Additional settings -->
+                            <div id="citySettingsButtons" class="flex justify-end gap-2 mb-3">
+                                <!-- P1 = Clock toggle: toggles march times visibility on the canvas -->
+                                <button citySettingsButtons="1" id="toggleMarchtime" title="Marchtimes on/off" class="px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">
+                                    <span class="material-symbols-outlined" aria-hidden="true" style="font-size:14px;line-height:1">schedule</span>
+                                </button>
+                                <!-- P2 = Wavemode toggle: toggles wave mode visibility on the canvas -->
+                                 <button citySettingsButtons="2" title="Wavemode on/off" class="px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">
+                                    <span class="material-symbols-outlined" aria-hidden="true" style="font-size:14px;line-height:1">airwave</span>
+                                </button>
+
+                                <!-- P3 = Toggle coordinates -->
+                                <button citySettingsButtons="3" title="Toggle coordinates" class="px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">
+                                    <span class="material-symbols-outlined" aria-hidden="true" style="font-size:14px;line-height:1">grid_on</span>
+                                </button>
+                                
+                                <!-- P4 = Import Players -->
+                                <button citySettingsButtons="4" title="Import Players" class="px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">
+                                    <span class="material-symbols-outlined" aria-hidden="true" style="font-size:14px;line-height:1">import_contacts</span>
+                                    <input type="file" id="playersCsvInput" accept=".csv,text/csv" class="hidden" />
+                                </button>
+                            </div>
+
+                            <div id="anchorInputContainer" class="hidden mt-2 flex justify-end gap-2">
+                                <input id="anchorInput" type="text" placeholder="x:y" 
+                                        class="w-24 p-1 border rounded text-sm" />
+                                <button id="setAnchorBtn" class="px-2 py-1 bg-blue-500 text-white text-xs rounded">
+                                    Set
+                                </button>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <label for="citySort" class="text-sm font-medium">Sort by:</label>
+                                <select id="citySort" class="flex-1 text-sm border-2 border-gray-300 rounded-lg p-2 focus:border-blue-500 focus:outline-none"></select>
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-4">
+                            <ul id="cityList" class="space-y-2"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bottom Section with Actions and Help -->
+                <!-- Actions Section -->
+                <div>
+                    <button data-bottom="actions" class="w-full px-4 py-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100">
+                        <span class="font-medium">Actions</span>
+                        <span class="transform transition-transform" id="actionsArrow">▼</span>
+                    </button>
+                    <div id="actionsSection" class="p-4 hidden">
+                        <div class="space-y-2">
+                            <button id="downloadButton" class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Save as PNG</button>
+                            <button id="saveButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Generate Code</button>
+                            <button id="saveAsCSVButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Save as CSV</button>
+                            <button id="shareButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Copy Link</button>
+                            <button id="shortUrlButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Generate Short URL</button>
+                            <textarea id="mapData" rows="3" placeholder="Map code..." 
+                                      class="w-full p-3 border-2 border-gray-300 rounded-lg text-sm resize-none focus:border-blue-500 focus:outline-none"></textarea>
+                            <button id="loadButton" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Load</button>
+                            
+                            <div id="shortUrlContainer" class="mt-2 hidden">
+                                <input id="shortUrlOutput" type="text" readonly class="w-full p-3 border-2 border-gray-300 rounded-lg text-sm mb-2" />
+                                <button id="copyShortUrlButton" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium">Copy</button>
+                                <span id="shortUrlError" class="text-red-500 text-sm ml-2"></span>
+                            </div>
+                            <div id="copyMessage" class="hidden text-green-500 font-medium text-sm text-center">Copied!</div>
+                        </div>
+                    </div>
+                </div>
+            <div class="border-t mt-auto">
+                <!-- Help Section -->
+                <div class="border-b">
+                    <button data-bottom="help" class="w-full px-4 py-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100">
+                        <span class="font-medium">Help</span>
+                        <span class="transform transition-transform" id="helpArrow">▼</span>
+                    </button>
+                    <div id="helpSection" class="p-4 hidden">
+                        <div class="text-sm space-y-3">
+                            <div>
+                                <p class="font-semibold text-blue-600 mb-2">Placing Objects</p>
+                                <p class="ml-2 text-gray-700">• Select an object type from toolbar</p>
+                                <p class="ml-2 text-gray-700">• Tap on grid to place</p>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-green-600 mb-2">Selection & Movement</p>
+                                <p class="ml-2 text-gray-700">• Choose "Select" → tap object</p>
+                                <p class="ml-2 text-gray-700">• Drag to move selected object</p>
+                                <p class="ml-2 text-gray-700">• Type to rename cities</p>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-purple-600 mb-2">Navigation</p>
+                                <p class="ml-2 text-gray-700">• Choose "Move" → drag to pan map</p>
+                                <p class="ml-2 text-gray-700">• Pinch to zoom (mobile)</p>
+                                <p class="ml-2 text-gray-700">• Mouse wheel: Zoom (desktop)</p>
+                                <p class="ml-2 text-gray-700">• Middle mouse: Pan (desktop)</p>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-red-600 mb-2">Deletion</p>
+                                <p class="ml-2 text-gray-700">• Select object → Delete button</p>
+                                <p class="ml-2 text-gray-700">• Or use Delete key (desktop)</p>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-gray-200">
+                                <p class="text-sm text-gray-500 text-center">
+                                    Original author: 
+                                    <a href="https://github.com/GFXSpeed" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">
+                                        GFXSpeed
+                                    </a>
+                                </p>
+                                <p class="text-sm text-gray-500 text-center">
+                                    Monorepo by: 
+                                    <a href="https://github.com/danelsgit" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline">
+                                        dkanelka
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <div id="mobileNav" class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+        <div class="flex justify-around">
+            <button data-mobile="buildings" class="flex-1 p-4 text-center">
+                <span class="block text-sm">Buildings</span>
+            </button>
+            <button data-mobile="cities" class="flex-1 p-4 text-center">
+                <span class="block text-sm">Cities</span>
+            </button>
+            <button data-mobile="actions" class="flex-1 p-4 text-center">
+                <span class="block text-sm">Actions</span>
+            </button>
+            <button data-mobile="help" class="flex-1 p-4 text-center">
+                <span class="block text-sm">Help</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Sliding Panels -->
+    <div id="mobilePanels" class="md:hidden">
+        <div id="mobileBuildings" class="mobile-panel">
+            <div class="bg-white p-4">
+                <h3 class="font-medium mb-4">Buildings</h3>
+                <!-- Building Controls -->
+                <div id="mobile-toolbar-buildings" class="grid grid-cols-2 gap-2 mb-4">
+                    <!-- Content will be synced with desktop version -->
+                </div>
+                <div class="text-sm p-3 bg-gray-100 rounded-lg text-center">
+                    <span>Flags: <span id="mobileFlagCounter" class="font-bold">0</span></span>
+                    <span class="mx-2">•</span>
+                    <span>Cities: <span id="mobileCityCounter" class="font-bold">0</span></span>
+                    <span class="mx-2">•</span>
+                    <span>BT: <span id="mobileBuildingCounter" class="font-bold">0</span></span>
+                    <span class="mx-2">•</span>
+                    <span>HQ: <span id="mobileHqCounter" class="font-bold">0</span></span>
+                    <span class="mx-2">•</span>
+                    <span>Nodes: <span id="mobileNodeCounter" class="font-bold">0</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="mobileCities" class="mobile-panel">
+            <div class="bg-white p-4">
+                <h3 class="font-medium mb-4">Cities</h3>
+                <!-- Additional setttings -->
+                <div id="mobileCitySettingsButtons" class="flex justify-end gap-2 mb-3">
+                    <!-- P1 = Clock toggle: toggles march times visibility on the canvas -->
+                    <button citySettingsButtons="m1" title="Marchtimes on/off" class="px-2 py-2 text-sm rounded bg-gray-100 hover:bg-gray-200">
+                        <span class="material-symbols-outlined" aria-hidden="true" style="font-size:16px;line-height:1">schedule</span>
+                    </button>
+                    
+                    <!-- P2 = Wavemode toggle: toggles wave mode visibility on the canvas -->
+                    <button citySettingsButtons="m2" title="Wavemode on/off" class="px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">
+                        <span class="material-symbols-outlined" aria-hidden="true" style="font-size:14px;line-height:1">airwave</span>
+                    </button>
+                    
+                    <!-- P3 = Toggle coordinates -->
+                    <button citySettingsButtons="m3" title="Toggle coordinates" class="px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">
+                        <span class="material-symbols-outlined" aria-hidden="true" style="font-size:14px;line-height:1">grid_on</span>
+                    </button>
+                    
+                    <!-- P4 = Import Players -->
+                    <button citySettingsButtons="m4" title="Import Players" class="px-2 py-1 text-xs rounded bg-gray-100 hover:bg-gray-200">
+                        <span class="material-symbols-outlined" aria-hidden="true" style="font-size:14px;line-height:1">import_contacts</span>
+                        <input type="file" id="mobilePlayersCsvInput" accept=".csv,text/csv" class="hidden" />
+                    </button>                     
+                </div>
+
+                <div class="flex items-center gap-2 mb-4">
+                    <label for="mobileCitySort" class="text-sm font-medium">Sort by:</label>
+                    <select id="mobileCitySort" class="flex-1 text-sm border-2 border-gray-300 rounded-lg p-2"></select>
+                </div>
+                <ul id="mobileCityList" class="space-y-2">
+                    <!-- Content will be synced with desktop version -->
+                </ul>
+            </div>
+        </div>
+
+        <div id="mobileActions" class="mobile-panel">
+            <div class="bg-white p-4">
+                <h3 class="font-medium mb-4">Actions</h3>
+                <div class="space-y-2">
+                    <button id="mobileDownloadButton" class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Save as PNG</button>
+                    <button id="mobileSaveButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Generate Code</button>
+                    <button id="mobileSaveAsCSVButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Save as CSV</button>
+                    <button id="mobileShareButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Copy Link</button>
+                    <button id="mobileShortUrlButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Generate Short URL</button>
+                    <textarea id="mobileMapData" rows="3" placeholder="Map code..." 
+                              class="w-full p-3 border-2 border-gray-300 rounded-lg text-sm resize-none focus:border-blue-500 focus:outline-none"></textarea>
+                    <button id="mobileLoadButton" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-lg text-sm font-medium">Load</button>
+                    <div id="mobileShortUrlContainer" class="mt-2 hidden">
+                        <input id="mobileShortUrlOutput" type="text" readonly class="w-full p-3 border-2 border-gray-300 rounded-lg text-sm mb-2" />
+                        <button id="mobileCopyShortUrlButton" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium">Copy</button>
+                        <span id="mobileShortUrlError" class="text-red-500 text-sm ml-2"></span>
+                    </div>
+                    <div id="mobileCopyMessage" class="hidden text-green-500 font-medium text-sm text-center">Copied!</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mobileHelp" class="mobile-panel">
+            <div class="bg-white p-4">
+                <!-- Copy of desktop help content -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize sections expanded
+        document.addEventListener('DOMContentLoaded', () => {
+            ['buildings', 'cities'].forEach(section => {
+                const content = document.getElementById(section + 'Section');
+                const arrow = document.getElementById(section + 'Arrow');
+                content.classList.remove('hidden');
+                arrow.style.transform = '';
+            });
+        });
+
+        // Unified section toggle function
+        function toggleSection(section) {
+            const content = document.getElementById(section + 'Section');
+            const arrow = document.getElementById(section + 'Arrow');
+            content.classList.toggle('hidden');
+            arrow.style.transform = content.classList.contains('hidden') ? 'rotate(180deg)' : '';
+        }
+
+        function toggleBottomSection(section) {
+            const content = document.getElementById(section + 'Section');
+            const arrow = document.getElementById(section + 'Arrow');
+            
+            // Close other sections first
+            ['help', 'actions'].forEach(s => {
+                if (s !== section) {
+                    const otherContent = document.getElementById(s + 'Section');
+                    const otherArrow = document.getElementById(s + 'Arrow');
+                    otherContent.classList.add('hidden');
+                    otherArrow.style.transform = 'rotate(180deg)';
+                }
+            });
+            
+            content.classList.toggle('hidden');
+            arrow.style.transform = content.classList.contains('hidden') ? 'rotate(180deg)' : '';
+        }
+
+        // Add mobile panel toggle function
+        function toggleMobileSection(section) {
+            const panels = document.querySelectorAll('.mobile-panel');
+            panels.forEach(panel => {
+                if (panel.id === `mobile${section.charAt(0).toUpperCase() + section.slice(1)}`) {
+                    panel.style.display = 'block';
+                    // Use setTimeout to ensure display:block takes effect before adding active class
+                    setTimeout(() => panel.classList.toggle('active'), 10);
+                } else {
+                    panel.classList.remove('active');
+                    // Hide panel after transition
+                    setTimeout(() => {
+                        if (!panel.classList.contains('active')) {
+                            panel.style.display = 'none';
+                        }
+                    }, 300);
+                }
+            });
+        }
+
+        // Update the sync toolbar buttons code
+        document.addEventListener('DOMContentLoaded', () => {
+            const desktopToolbar = document.getElementById('toolbar-buildings');
+            const mobileToolbar = document.getElementById('mobile-toolbar-buildings');
+            
+            // Clone desktop toolbar buttons to mobile toolbar
+            if (desktopToolbar && mobileToolbar) {
+                Array.from(desktopToolbar.children).forEach(button => {
+                    const clone = button.cloneNode(true);
+                    clone.addEventListener('click', handleToolbarClick);
+                    mobileToolbar.appendChild(clone);
+                });
+            }
+
+            // ---- Copy desktop Help content into mobile Help panel so we maintain one source ----
+            const desktopHelp = document.getElementById('helpSection');
+            const mobileHelpPanel = document.getElementById('mobileHelp');
+            // mobileHelpPanel contains an inner .bg-white wrapper — replace its inner content
+            const mobileHelpWrapper = mobileHelpPanel?.querySelector('.bg-white');
+            if (desktopHelp && mobileHelpWrapper) {
+                // keep mobile header and attach desktop help content
+                // Avoid using innerHTML with mixed content; clone nodes instead to prevent
+                // any accidental interpretation of HTML from the source node.
+                // Clear existing content
+                while (mobileHelpWrapper.firstChild) mobileHelpWrapper.removeChild(mobileHelpWrapper.firstChild);
+                // Add header
+                const h3 = document.createElement('h3');
+                h3.className = 'font-medium mb-4';
+                h3.textContent = 'Help';
+                mobileHelpWrapper.appendChild(h3);
+                // Clone the desktop help children (deep clone)
+                Array.from(desktopHelp.childNodes).forEach(node => {
+                    mobileHelpWrapper.appendChild(node.cloneNode(true));
+                });
+            }
+
+            // Show the marchtime hint only when Castle mode is selected
+            const mapModeSelect = document.getElementById('mapModeSelect');
+            const marchtimeHint = document.getElementById('marchtimeHint');
+            function updateMarchtimeHint() {
+                if (!mapModeSelect || !marchtimeHint) return;
+                if (mapModeSelect.value === 'castle') {
+                    marchtimeHint.classList.remove('hidden');
+                } else {
+                    marchtimeHint.classList.add('hidden');
+                }
+            }
+            updateMarchtimeHint();
+            if (mapModeSelect) mapModeSelect.addEventListener('change', updateMarchtimeHint);
+
+            // Event listeners declaratively
+            document.querySelectorAll('[data-section]').forEach(btn => {
+                btn.addEventListener('click', () => toggleSection(btn.dataset.section));
+            });
+            document.querySelectorAll('[data-bottom]').forEach(btn => {
+                btn.addEventListener('click', () => toggleBottomSection(btn.dataset.bottom));
+            });
+            document.querySelectorAll('[data-mobile]').forEach(btn => {
+                btn.addEventListener('click', () => toggleMobileSection(btn.dataset.mobile));
+            });
+        });
+    </script>
+    
+    <script src="/js/script.js"></script>
+</body>
+</html>
