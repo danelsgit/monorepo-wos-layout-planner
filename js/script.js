@@ -39,6 +39,7 @@ let selectedType = null;
 let selectedEntity = null;
 let cityCounterId = 1;
 let bearTraps = [];
+let enemyZones = []; // Array for enemy zones (max 2)
 let isDragging = false;
 let isPanning = false;
 let dragOffsetX = 0;
@@ -409,7 +410,10 @@ function drawEntity(context, pX, pY, z, entity, protectedAreas) {
         drawNodeDetails(context, z, entity, centerScreen);
     } else if (entity.type === 'obstacle') {
         drawObstacleDetails(context, z, entity, centerScreen);
+    }  else if (entity.type === 'enemyzone') {
+    drawEnemyZoneDetails(context, z, entity, centerScreen);
     }
+
     
     context.restore();
 }
@@ -557,6 +561,17 @@ function drawObstacleDetails(context, z, obstacle, screen) {
     context.textAlign = 'center';
     context.textBaseline = 'middle';
 }
+
+function drawEnemyZoneDetails(context, z, zone, screen) {
+    context.fillStyle = 'white';
+    const currentGridSize = baseGridSize * z;
+    const baseFontSize = Math.max(10, Math.min(24, currentGridSize * 0.25));
+    context.font = `${baseFontSize}px Arial`;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('ENEMIES STATE', screen.x, screen.y);
+}
+
 
 function drawSelectionHighlight(context, pX, pY, z, entity) {
     const currentGridSize = baseGridSize * z;
@@ -873,7 +888,20 @@ function addEntity(event) {
         color = '#8B0000';
         width = 1;
         height = 1;
+    } else if (selectedType === 'enemyzone') {
+    if (mapMode !== 'castle') {
+        alert('Enemy zones can only be placed in Castle mode.');
+        return;
     }
+    if (enemyZones.length >= 3) {
+        alert('You can only place up to 3 Enemy Zones.');
+        return;
+    }
+    color = 'black';
+    width = 12;
+    height = 12;
+}
+
 
     const newEntityTemplate = { x, y, width, height, type: selectedType };
     if (isPositionValid(x, y, newEntityTemplate)) {
@@ -890,7 +918,12 @@ function addEntity(event) {
         entities.push(newEntity);
         if (selectedType === 'building') {
             bearTraps.push(newEntity);
-        }
+        }  else if (selectedType === 'enemyzone') {
+    enemyZones.push(newEntity);
+    }
+
+
+        
         redraw();
         updateCounters();
         markUnsavedChanges();
@@ -1444,6 +1477,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
             // Clear bear traps and reset city counter and selection
             bearTraps.length = 0;
+            enemyZones.length = 0;
             cityCounterId = 1;
             selectedEntity = null;
 
@@ -1930,7 +1964,11 @@ function updateGhostPreview(mouseX, mouseY) {
         } else if (selectedType === 'building' || selectedType === 'hq' || selectedType === 'node') {
             width = 3;
             height = 3;
+        }  else if (selectedType === 'enemyzone') {
+            width = 12;
+            height = 12;
         }
+
 
         const tempEntity = { x, y, width, height, type: selectedType };
         const validPosition = isPositionValid(x, y, tempEntity);
@@ -2116,7 +2154,10 @@ function deleteSelectedEntity() {
         } else if (selectedEntity.type === 'building') {
             bearTraps = bearTraps.filter(trap => trap !== selectedEntity);
             entities.splice(index, 1);
-        } else {
+        }  else if (selectedEntity.type === 'enemyzone') {
+            enemyZones = enemyZones.filter(zone => zone !== selectedEntity);
+            entities.splice(index, 1);
+        }   else {
             entities.splice(index, 1);
         }
         selectedEntity = null;
@@ -2342,10 +2383,13 @@ function compressMap(entities) {
         }
 
         const type = entity.type === "flag" ? "000" :
-                    entity.type === "city" ? "001" : 
-                    entity.type === "building" ? "010" : 
-                    entity.type === "node" ? "011" : 
-                    entity.type === "hq" ? "101" : "100"; // obstacle
+            entity.type === "city" ? "001" : 
+            entity.type === "building" ? "010" : 
+            entity.type === "node" ? "011" : 
+            entity.type === "hq" ? "101" : 
+            entity.type === "enemyzone" ? "110" :
+            "100";
+
 
         const storageX = entity.x + gridCols;
         const storageY = entity.y + gridRows;
@@ -2528,12 +2572,14 @@ function decompressNew(binaryString) {
         const yBits = binaryString.slice(i, i + 10);
         i += 10;
 
-        const type =
-        typeBits === "000" ? "flag" :
-        typeBits === "001" ? "city" :
-        typeBits === "010" ? "building" :
-        typeBits === "011" ? "node" :
-        typeBits === "101" ? "hq" : "obstacle";
+        const type = typeBits === "000" ? "flag" :
+            typeBits === "001" ? "city" :
+            typeBits === "010" ? "building" :
+            typeBits === "011" ? "node" :
+            typeBits === "101" ? "hq" : 
+            typeBits === "110" ? "enemyzone" :
+            "obstacle";
+
 
         const storageX = parseInt(xBits, 2);
         const storageY = parseInt(yBits, 2);
@@ -2598,7 +2644,12 @@ function decompressNew(binaryString) {
         entity.width = 1;
         entity.height = 1;
         entity.color = "#8B0000";
+        }  else if (type === 'enemyzone') {
+        entity.width = 12;
+        entity.height = 8;
+        entity.color = 'black';
         }
+
 
         entities.push(entity);
     }
@@ -2701,7 +2752,10 @@ function loadMap() {
             entities.push(entity);
             if (entity.type === "building") {
                 bearTraps.push(entity);
-            }
+            }  else if (entity.type === 'enemyzone') {
+                enemyZones.push(entity);
+                }
+
         });
 
         if (!Array.isArray(loaded)) {
